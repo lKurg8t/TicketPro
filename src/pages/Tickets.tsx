@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Ticket, Clock, CheckCircle, AlertCircle, Search, Filter } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Plus, Ticket, Clock, CheckCircle, AlertCircle, Search, Filter, Eye } from 'lucide-react';
 import { ticketAPI } from '@/services/api';
 import type { Ticket as TicketType } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -21,8 +22,11 @@ const Tickets: React.FC = () => {
   const [filteredTickets, setFilteredTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ticketsPerPage] = useState(5);
   const [newTicket, setNewTicket] = useState({
     title: '',
     description: '',
@@ -143,6 +147,16 @@ const Tickets: React.FC = () => {
       default:
         return 'bg-gray-500/20 text-gray-300 border-gray-500/30 hover:bg-gray-500/30';
     }
+  };
+
+  // Pagination logic
+  const indexOfLastTicket = currentPage * ticketsPerPage;
+  const indexOfFirstTicket = indexOfLastTicket - ticketsPerPage;
+  const currentTickets = filteredTickets.slice(indexOfFirstTicket, indexOfLastTicket);
+  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   if (loading) {
@@ -279,36 +293,131 @@ const Tickets: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredTickets.map((ticket) => (
-              <Card key={ticket.id} className="hover:shadow-lg transition-all duration-300 border-border/50">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center space-x-2">
-                        {getStatusIcon(ticket.status)}
-                        <span>{ticket.title}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        Ticket #{ticket.id} • Created {new Date(ticket.createdAt).toLocaleDateString()}
-                        {isAdmin && (
-                          <span className="ml-2">• Customer: {ticket.customerId}</span>
-                        )}
-                      </CardDescription>
+          <>
+            <div className="space-y-4">
+              {currentTickets.map((ticket) => (
+                <Card key={ticket.id} className="hover:shadow-lg transition-all duration-300 border-border/50">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center space-x-2">
+                          {getStatusIcon(ticket.status)}
+                          <span>{ticket.title}</span>
+                        </CardTitle>
+                        <CardDescription className="mt-2">
+                          Ticket #{ticket.id} • Created {new Date(ticket.createdAt).toLocaleDateString()}
+                          {isAdmin && (
+                            <span className="ml-2">• Customer: {ticket.customerId}</span>
+                          )}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedTicket(ticket)}
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center space-x-2">
+                                {getStatusIcon(ticket.status)}
+                                <span>{ticket.title}</span>
+                              </DialogTitle>
+                              <DialogDescription>
+                                Ticket #{ticket.id} • Created {new Date(ticket.createdAt).toLocaleDateString()}
+                                {isAdmin && (
+                                  <span className="ml-2">• Customer: {ticket.customerId}</span>
+                                )}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label className="text-sm font-medium">Status</Label>
+                                <div className="mt-1">
+                                  <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
+                                    {ticket.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Description</Label>
+                                <div className="mt-1 p-3 bg-muted rounded-md">
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                    {ticket.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <Label className="text-sm font-medium">Created</Label>
+                                  <p className="text-muted-foreground">
+                                    {new Date(ticket.createdAt).toLocaleDateString()} at {new Date(ticket.createdAt).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm font-medium">Ticket ID</Label>
+                                  <p className="text-muted-foreground">#{ticket.id}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
+                          {ticket.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
-                      {ticket.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {ticket.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground leading-relaxed line-clamp-2">
+                      {ticket.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-8">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => handlePageChange(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

@@ -40,7 +40,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await axios.get(`${API_BASE}/Customers`);
       const customers: Customer[] = response.data;
       
-      // Simple password validation - in real app, this would be hashed and secure
       const foundUser = customers.find(customer => 
         customer.email.toLowerCase() === email.toLowerCase()
       );

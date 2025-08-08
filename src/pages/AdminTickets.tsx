@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Clock, CheckCircle, AlertCircle, Search, Filter, Edit, Trash2, Shield, User } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Clock, CheckCircle, AlertCircle, Search, Filter, Edit, Trash2, Shield, User, Eye } from 'lucide-react';
 import { ticketAPI, customerAPI } from '@/services/api';
 import type { Ticket, Customer } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +25,9 @@ const AdminTickets: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ticketsPerPage] = useState(5);
 
   // Redirect non-admin users
   if (!isAdmin) {
@@ -158,6 +163,16 @@ const AdminTickets: React.FC = () => {
     }
   };
 
+  // Pagination logic
+  const indexOfLastTicket = currentPage * ticketsPerPage;
+  const indexOfFirstTicket = indexOfLastTicket - ticketsPerPage;
+  const currentTickets = filteredTickets.slice(indexOfFirstTicket, indexOfLastTicket);
+  const totalPages = Math.ceil(filteredTickets.length / ticketsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -265,88 +280,187 @@ const AdminTickets: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredTickets.map((ticket) => (
-              <Card key={ticket.id} className="hover:shadow-lg transition-all duration-300 border-border/50">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center space-x-2">
-                        {getStatusIcon(ticket.status)}
-                        <span>{ticket.title}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-2 flex items-center space-x-4">
-                        <span>Ticket #{ticket.id}</span>
-                        <span>•</span>
-                        <span className="flex items-center space-x-1">
-                          <User className="w-3 h-3" />
-                          <span>{getCustomerName(ticket.customerId)}</span>
-                        </span>
-                        <span>•</span>
-                        <span>Created {new Date(ticket.createdAt).toLocaleDateString()}</span>
-                      </CardDescription>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Select
-                        value={ticket.status}
-                        onValueChange={(newStatus: 'Open' | 'In Progress' | 'Closed') => 
-                          handleUpdateTicketStatus(ticket.id, newStatus)
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Open">Open</SelectItem>
-                          <SelectItem value="In Progress">In Progress</SelectItem>
-                          <SelectItem value="Closed">Closed</SelectItem>
-                        </SelectContent>
-                      </Select>
+          <>
+            <div className="space-y-4">
+              {currentTickets.map((ticket) => (
+                <Card key={ticket.id} className="hover:shadow-lg transition-all duration-300 border-border/50">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center space-x-2">
+                          {getStatusIcon(ticket.status)}
+                          <span>{ticket.title}</span>
+                        </CardTitle>
+                        <CardDescription className="mt-2 flex items-center space-x-4">
+                          <span>Ticket #{ticket.id}</span>
+                          <span>•</span>
+                          <span className="flex items-center space-x-1">
+                            <User className="w-3 h-3" />
+                            <span>{getCustomerName(ticket.customerId)}</span>
+                          </span>
+                          <span>•</span>
+                          <span>Created {new Date(ticket.createdAt).toLocaleDateString()}</span>
+                        </CardDescription>
+                      </div>
                       
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this ticket? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDeleteTicket(ticket.id)}
-                              className="bg-destructive hover:bg-destructive/90"
+                      <div className="flex items-center space-x-2">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedTicket(ticket)}
                             >
-                              Delete Ticket
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center space-x-2">
+                                {getStatusIcon(ticket.status)}
+                                <span>{ticket.title}</span>
+                              </DialogTitle>
+                              <DialogDescription>
+                                Ticket #{ticket.id} • Created {new Date(ticket.createdAt).toLocaleDateString()}
+                                <span className="ml-2">• Customer: {getCustomerName(ticket.customerId)}</span>
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label className="text-sm font-medium">Status</Label>
+                                <div className="mt-1">
+                                  <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
+                                    {ticket.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Customer</Label>
+                                <div className="mt-1 flex items-center space-x-2">
+                                  <User className="w-4 h-4 text-muted-foreground" />
+                                  <span>{getCustomerName(ticket.customerId)} (ID: {ticket.customerId})</span>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-sm font-medium">Description</Label>
+                                <div className="mt-1 p-3 bg-muted rounded-md">
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                                    {ticket.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <Label className="text-sm font-medium">Created</Label>
+                                  <p className="text-muted-foreground">
+                                    {new Date(ticket.createdAt).toLocaleDateString()} at {new Date(ticket.createdAt).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                                <div>
+                                  <Label className="text-sm font-medium">Ticket ID</Label>
+                                  <p className="text-muted-foreground">#{ticket.id}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(newStatus: 'Open' | 'In Progress' | 'Closed') => 
+                            handleUpdateTicketStatus(ticket.id, newStatus)
+                          }
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Open">Open</SelectItem>
+                            <SelectItem value="In Progress">In Progress</SelectItem>
+                            <SelectItem value="Closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this ticket? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteTicket(ticket.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete Ticket
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed mb-4">
-                    {ticket.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
-                      {ticket.status}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      Customer ID: {ticket.customerId}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground leading-relaxed mb-4 line-clamp-2">
+                      {ticket.description}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <Badge className={`${getStatusColor(ticket.status)} transition-colors`}>
+                        {ticket.status}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        Customer ID: {ticket.customerId}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-8">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => handlePageChange(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>
